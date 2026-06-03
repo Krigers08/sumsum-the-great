@@ -31,6 +31,10 @@ function import_csv(PDO $pdo, string $file, string $table, array $columns, calla
         }
         $stmt->execute($params);
         $count++;
+        if ($count % 50 === 0) {
+            echo "  $table: $count rows\n";
+            flush();
+        }
     }
     fclose($handle);
     return $count;
@@ -39,7 +43,6 @@ function import_csv(PDO $pdo, string $file, string $table, array $columns, calla
 $csv_dir = __DIR__ . '/csv';
 
 try {
-    $pdo->beginTransaction();
 
     // Regions
     $n = import_csv($pdo, "$csv_dir/Regions.csv", 'regions', ['region_id', 'region_description']);
@@ -63,16 +66,18 @@ try {
         ['customer_id','company_name','contact_name','contact_title','address','city','region','postal_code','country','phone','fax']);
     echo "Customers: $n\n";
 
-// Employees - insert without reports_to first to avoid self-referencing FK violation
+    // Employees - insert without reports_to first to avoid self-referencing FK violation
     $n = import_csv($pdo, "$csv_dir/Employees.csv", 'employees',
         ['employee_id','last_name','first_name','title','title_of_courtesy','birth_date','hire_date',
          'address','city','region','postal_code','country','home_phone','extension','notes','photo_path'],
         function($row) {
+            // drop reports_to (index 15), keep photo_path (index 16)
             return array_merge(array_slice($row, 0, 15), [array_slice($row, 16)[0] ?? null]);
         }
     );
+    // Now update reports_to separately
     $handle = fopen("$csv_dir/Employees.csv", 'r');
-    fgetcsv($handle);
+    fgetcsv($handle); // skip header
     $upd = $pdo->prepare("UPDATE employees SET reports_to = :rt WHERE employee_id = :id");
     while (($row = fgetcsv($handle)) !== false) {
         $rt = (isset($row[15]) && $row[15] !== '') ? (int)$row[15] : null;
@@ -106,10 +111,8 @@ try {
         ['order_id','product_id','unit_price','quantity','discount']);
     echo "OrderDetails: $n\n";
 
-    $pdo->commit();
     echo "\nImport complete.\n";
 } catch (Exception $e) {
-    $pdo->rollBack();
     echo "Error: " . $e->getMessage() . "\n";
     exit(1);
 }
