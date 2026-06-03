@@ -21,7 +21,7 @@ function paginate_links(string $page, int $offset, int $limit, int $total, array
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Northwind DB</title>
+<title>Shop Data Manager</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: system-ui, sans-serif; background: #f4f5f7; color: #1a1a2e; }
